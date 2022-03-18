@@ -1,50 +1,63 @@
-import { Direction } from "./direction/direction";
+import { CommandManager } from "./commands/commandManager";
+import { LeftCommand } from "./commands/leftCommand";
+import { MoveCommand } from "./commands/moveCommand";
+import { RightCommand } from "./commands/rightCommand";
 import { North } from "./direction/north";
 import { Grid } from "./grid";
-import { Position } from "./position";
+import { RoverState } from "./roverState";
+
+type AllowedInputs = "M" | "L" | "R" | "U";
 
 export class Rover {
-  private previousPosition: Position;
-  private currentPosition: Position;
-  private direction: Direction = new North();
-  private foundObstacle: boolean = false;
+  private currentState: RoverState;
 
-  constructor(private grid: Grid) {
-    this.previousPosition = { x: 0, y: 0 };
-    this.currentPosition = { x: 0, y: 0 };
+  constructor(private grid: Grid, private manager: CommandManager) {
+    this.currentState = {
+      position: { x: 0, y: 0 },
+      direction: new North(),
+    };
   }
 
-  execute(commands: string) {
-    for (const command of commands.split("")) {
-      if (command === "M") {
-        this.move();
-      } else if (command === "R") {
-        this.direction = this.direction.turnRight();
-      } else if (command === "L") {
-        this.direction = this.direction.turnLeft();
-      }
+  execute(characters: string) {
+    for (const character of characters.split("")) {
+      this.currentState = this.getNextState(character as AllowedInputs);
 
-      if (this.grid.isThereObstacle(this.currentPosition)) {
-        this.currentPosition = this.previousPosition;
-        this.foundObstacle = true;
+      if (this.currentState.foundObstacle) {
         break;
-      } else {
-        this.previousPosition = { ...this.currentPosition };
-        this.foundObstacle = false;
       }
     }
   }
 
-  private move() {
-    this.currentPosition = this.direction.move(this.currentPosition);
-    this.currentPosition = this.grid.wrapAround(this.currentPosition);
+  private getNextState(input: AllowedInputs) {
+    if (input === "U") {
+      return this.manager.undo();
+    }
+
+    const command = this.getCommand(input);
+
+    if (!command) {
+      throw new Error("command not supported");
+    }
+
+    return this.manager.execute(command);
+  }
+
+  private getCommand(input: string) {
+    if (input === "M") {
+      return new MoveCommand(this.currentState, this.grid);
+    } else if (input === "R") {
+      return new RightCommand(this.currentState, this.grid);
+    } else if (input === "L") {
+      return new LeftCommand(this.currentState, this.grid);
+    }
   }
 
   getPosition() {
-    const prefix = this.foundObstacle ? "O:" : "";
+    const { foundObstacle, position, direction } = this.currentState;
+    const prefix = foundObstacle ? "O:" : "";
 
-    return `${prefix}${this.currentPosition.x.toString()}:${this.currentPosition.y.toString()}:${
-      this.direction.symbol
+    return `${prefix}${position.x.toString()}:${position.y.toString()}:${
+      direction.symbol
     }`;
   }
 }

@@ -1,7 +1,11 @@
 import { GeneratedIdentifierFlags } from "typescript";
+import { CommandManager } from "../main/commands/commandManager";
 import { Grid } from "../main/grid";
+import { Logger } from "../main/logger";
 import { Position } from "../main/position";
 import { Rover } from "../main/rover";
+
+const manager = new CommandManager(new Logger());
 
 describe("Mars Rover", () => {
   it.each([
@@ -24,8 +28,9 @@ describe("Mars Rover", () => {
     ["MMMMMMMMMM", "0:0:N"],
     ["RMMMMMMMMMM", "0:0:E"],
     ["MMMMMMMMMMMMMMM", "0:5:N"],
+    ["MMU", "0:1:N"],
   ])("should parse command %p and move to %p", (commands, position) => {
-    const rover = new Rover(new Grid(10));
+    const rover = new Rover(new Grid(10), manager);
 
     rover.execute(commands);
 
@@ -43,11 +48,19 @@ describe("Mars Rover", () => {
         { x: 1, y: 2 },
       ];
 
-      const rover = new Rover(new Grid(10, obstacles));
+      const rover = new Rover(new Grid(10, obstacles), manager);
 
       rover.execute(commands);
 
       expect(rover.getPosition()).toEqual(position);
     }
   );
+
+  it("should not accept unsupported commands", () => {
+    const rover = new Rover(new Grid(10), manager);
+
+    expect(() => rover.execute("SDOFJOISDJFFGIO")).toThrow(
+      "command not supported"
+    );
+  });
 });
